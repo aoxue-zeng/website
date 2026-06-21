@@ -6,6 +6,7 @@
 
 const Dialogue = {
   _typing: false,
+  _waitingChoice: false,
   _fullText: '',
   _timer: null,
   _resolveChoice: null,
@@ -31,21 +32,17 @@ const Dialogue = {
     const nameEl = document.getElementById('speaker-name');
     nameEl.textContent = line.speaker || '';
     nameEl.style.color = line.sys ? PALETTE.cyan : (line.speaker === '塔柳斯' ? PALETTE.roseLight : PALETTE.moon);
-    // 打字机
-    await this._type(line.text || '');
-    // 等待确认
-    await this._waitConfirm();
-  },
 
-  _type(text) {
-    return new Promise(resolve => {
+    // 单一 confirm 处理器：第一次点击=跳过打字机，第二次点击=进入下一条
+    await new Promise(resolve => {
       const el = document.getElementById('dialogue-text');
       const arrow = document.getElementById('text-arrow');
-      arrow.style.visibility = 'hidden';
+      const text = line.text || '';
       el.textContent = '';
-      this._fullText = text;
-      this._typing = true;
+      arrow.style.visibility = 'hidden';
+
       let i = 0;
+      this._typing = true;
       this._timer = setInterval(() => {
         if (i < text.length) {
           el.textContent += text[i++];
@@ -53,29 +50,17 @@ const Dialogue = {
           clearInterval(this._timer);
           this._typing = false;
           arrow.style.visibility = 'visible';
-          resolve();
         }
       }, 28);
-      // 允许跳过
-      this._skipCb = () => {
+
+      // 提前注册处理器：点击时若仍在打字则跳过，否则推进
+      const cb = () => {
+        if (this._waitingChoice) { return; } // 选项期间不抢
         if (this._typing) {
           clearInterval(this._timer);
           el.textContent = text;
           this._typing = false;
           arrow.style.visibility = 'visible';
-          resolve();
-        }
-      };
-    });
-  },
-
-  _waitConfirm() {
-    return new Promise(resolve => {
-      const arrow = document.getElementById('text-arrow');
-      arrow.style.visibility = this._typing ? 'hidden' : 'visible';
-      const cb = () => {
-        if (this._typing) {
-          this._skipCb && this._skipCb();
         } else {
           Input.off(cb);
           resolve();
@@ -85,9 +70,13 @@ const Dialogue = {
     });
   },
 
+  _type(text) { return Promise.resolve(); },   // 已并入 _showOne，保留占位避免外部引用报错
+  _waitConfirm() { return Promise.resolve(); },
+
   /* 展示选项，返回所选 value */
   choices(options) {
     return new Promise(resolve => {
+      this._waitingChoice = true;
       const list = document.getElementById('choice-list');
       list.innerHTML = '';
       this._selected = 0;
@@ -131,6 +120,7 @@ const Dialogue = {
       this._choiceCbs.forEach(cb => Input.off(cb));
       this._choiceCbs = null;
     }
+    this._waitingChoice = false;
     const list = document.getElementById('choice-list');
     list.innerHTML = '';
     const arrow = document.getElementById('text-arrow');
