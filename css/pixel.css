@@ -1,0 +1,132 @@
+/* ===========================================================
+   月蚀·玫瑰残响 —— 像素风样式
+   字体 / 边框 / 动画 / 通用像素 UI
+   =========================================================== */
+
+/* 像素字体：优先用系统等宽 + 像素感 fallback */
+@font-face {
+  font-family: 'PixelCJK';
+  src: local('Microsoft YaHei'), local('PingFang SC'), local('Noto Sans CJK SC');
+}
+
+/* 华丽字体栈：标题用毛笔楷书，正文用思源宋体，UI 用小薇体 */
+:root {
+  --pixel-font: 'ZCOOL XiaoWei', 'STKaiti', 'KaiTi', '楷体', monospace;
+  --serif-font: 'Noto Serif SC', 'STSong', 'SimSun', '宋体', serif;
+  --title-font: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', '楷体', cursive;
+  --ui-font: 'ZCOOL XiaoWei', 'Noto Serif SC', sans-serif;
+  --color-rose: #8b1e3f;       /* 塔柳斯玫瑰暗红 */
+  --color-rose-light: #c0395e;
+  --color-rose-dark: #5e1429;
+  --color-ink: #1a1a2e;        /* 深墨黑 */
+  --color-ink-2: #16213e;
+  --color-parchment: #e8dcc4;  /* 羊皮纸 */
+  --color-parchment-2: #d4c4a0;
+  --color-moon: #c8d6e5;       /* 月光 */
+  --color-cyan: #00e5ff;       /* 现代裂缝霓虹 */
+  --color-gold: #f1c40f;
+  --color-danger: #e74c3c;
+  --color-ok: #2ecc71;
+}
+
+/* 像素化渲染（针对 canvas） */
+canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* 像素按钮：无圆角、硬边框、按下位移 */
+.pixel-btn {
+  font-family: var(--ui-font);
+  font-size: 16px;
+  letter-spacing: 2px;
+  color: var(--color-parchment);
+  background: var(--color-ink);
+  border: 3px solid var(--color-parchment);
+  box-shadow: 4px 4px 0 0 #000;
+  padding: 10px 18px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.05s, box-shadow 0.05s, color 0.2s, background 0.2s;
+}
+.pixel-btn:hover {
+  color: var(--color-rose-light);
+  background: var(--color-ink-2);
+}
+.pixel-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 1px 1px 0 0 #000;
+}
+.pixel-btn:focus {
+  outline: 3px solid var(--color-rose-light);
+  outline-offset: 2px;
+}
+
+/* 打字机光标闪烁 */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+.blink {
+  animation: blink 0.8s steps(1) infinite;
+}
+
+#text-arrow {
+  display: inline-block;
+  animation: blink 0.6s steps(1) infinite;
+  color: var(--color-rose-light);
+}
+
+/* 系统提示淡入淡出 */
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, -60%); }
+  to   { opacity: 1; transform: translate(-50%, -50%); }
+}
+#toast.show {
+  animation: toast-in 0.25s ease forwards;
+}
+
+/* 标题文字微微脉动（保持锐利，不模糊） */
+@keyframes title-pulse {
+  0%, 100% {
+    text-shadow:
+      0 0 1px #fff,
+      3px 3px 0 var(--color-rose-dark),
+      6px 6px 0 rgba(20,8,18,0.6),
+      0 0 22px rgba(192,57,94,0.7),
+      0 0 40px rgba(139,30,63,0.4);
+  }
+  50% {
+    text-shadow:
+      0 0 1px #fff,
+      3px 3px 0 var(--color-rose-dark),
+      6px 6px 0 rgba(20,8,18,0.6),
+      0 0 30px rgba(192,57,94,0.95),
+      0 0 60px rgba(139,30,63,0.6);
+  }
+}
+.title-main {
+  animation: title-pulse 4s ease-in-out infinite;
+}
+
+/* 立绘淡入 */
+@keyframes portrait-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.portrait-show {
+  animation: portrait-in 0.3s ease forwards;
+}
+
+/* 裂缝霓虹闪烁（现代场景用） */
+@keyframes neon-flicker {
+  0%, 100% { opacity: 1; }
+  47% { opacity: 1; }
+  48% { opacity: 0.4; }
+  49% { opacity: 1; }
+  70% { opacity: 0.7; }
+  71% { opacity: 1; }
+}
+.neon {
+  animation: neon-flicker 4s linear infinite;
+}

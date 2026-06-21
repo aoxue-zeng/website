@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>月蚀·玫瑰残响</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;700;900&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/pixel.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 游戏主舞台 -->
+  <div id="game-frame">
+    <!-- 像素场景画布 -->
+    <canvas id="scene-canvas" width="960" height="540"></canvas>
+
+    <!-- 顶层：标题界面 -->
+    <div id="title-screen" class="overlay">
+      <!-- 飘落玫瑰花瓣层 -->
+      <canvas id="petal-canvas"></canvas>
+
+      <div class="title-vignette"></div>
+
+      <div class="title-content">
+        <div class="title-ornament top">
+          <span class="orn-line"></span>
+          <span class="orn-rose">❀</span>
+          <span class="orn-line"></span>
+        </div>
+
+        <h1 class="title-main">月蚀</h1>
+        <div class="title-divider"><span></span><i>玫瑰残响</i><span></span></div>
+        <p class="title-tagline">“左眼盛放玫瑰，月隐于云。”</p>
+
+        <div class="title-menu">
+          <button class="pixel-btn title-btn" data-action="new-game">
+            <span class="btn-mark">◇</span> 新的旅程
+          </button>
+          <button class="pixel-btn title-btn" data-action="load-game">
+            <span class="btn-mark">◇</span> 继续旅途
+          </button>
+          <button class="pixel-btn title-btn" data-action="about">
+            <span class="btn-mark">◇</span> 关于
+          </button>
+        </div>
+      </div>
+
+      <p class="title-hint">点击或按 Enter 选择 · 方向键切换</p>
+    </div>
+
+    <!-- 顶层：系统面板（属性/背包/任务） -->
+    <div id="system-panel" class="overlay hidden">
+      <div class="panel-tabs">
+        <button class="panel-tab active" data-tab="status">状态</button>
+        <button class="panel-tab" data-tab="inventory">背包</button>
+        <button class="panel-tab" data-tab="quest">任务</button>
+        <button class="panel-tab" data-tab="dossier">副本</button>
+        <button class="panel-close pixel-btn" data-action="close-panel">返回</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-page active" data-page="status"></div>
+        <div class="panel-page" data-page="inventory"></div>
+        <div class="panel-page" data-page="quest"></div>
+        <div class="panel-page" data-page="dossier"></div>
+      </div>
+    </div>
+
+    <!-- 对话层：立绘 + 文字框 + 选项 -->
+    <div id="dialogue-layer" class="overlay hidden">
+      <div id="portrait-area"></div>
+      <div id="text-box">
+        <div id="speaker-name"></div>
+        <div id="dialogue-text"></div>
+        <div id="choice-list"></div>
+        <div id="text-arrow">▼</div>
+      </div>
+    </div>
+
+    <!-- 通用菜单层（探索时的行动按钮） -->
+    <div id="action-menu" class="overlay hidden">
+      <button class="pixel-btn" data-action="explore">探索</button>
+      <button class="pixel-btn" data-action="talk">交谈</button>
+      <button class="pixel-btn" data-action="menu">系统</button>
+    </div>
+
+    <!-- 战斗层 -->
+    <div id="combat-layer" class="overlay hidden">
+      <div id="combat-enemy"></div>
+      <div id="combat-log"></div>
+      <div id="combat-actions">
+        <button class="pixel-btn" data-combat="attack">攻击</button>
+        <button class="pixel-btn" data-combat="skill">技能</button>
+        <button class="pixel-btn" data-combat="defend">防御</button>
+        <button class="pixel-btn" data-combat="item">道具</button>
+      </div>
+    </div>
+
+    <!-- 系统提示 toast -->
+    <div id="toast" class="hidden"></div>
+
+    <!-- 顶部状态条 -->
+    <div id="topbar" class="hidden">
+      <span id="topbar-name"></span>
+      <span id="topbar-hp"></span>
+      <span id="topbar-mp"></span>
+      <span id="topbar-gold"></span>
+      <span id="topbar-time"></span>
+    </div>
+  </div>
+
+  <!-- 数据层（按依赖顺序加载） -->
+  <script src="js/data/sprites.js"></script>
+  <script src="js/data/items.js"></script>
+  <script src="js/data/npcs.js"></script>
+  <script src="js/data/dungeons.js"></script>
+  <script src="js/data/story.js"></script>
+
+  <!-- 核心引擎 -->
+  <script src="js/core/input.js"></script>
+  <script src="js/core/save.js"></script>
+  <script src="js/core/sprite.js"></script>
+  <script src="js/core/scene.js"></script>
+  <script src="js/core/dialogue.js"></script>
+  <script src="js/core/game.js"></script>
+  <script src="js/core/system-panel.js"></script>
+
+  <!-- 系统模块 -->
+  <script src="js/systems/inventory.js"></script>
+  <script src="js/systems/quest.js"></script>
+  <script src="js/systems/combat.js"></script>
+  <script src="js/systems/dungeon.js"></script>
+  <script src="js/systems/farm.js"></script>
+  <script src="js/systems/house.js"></script>
+
+  <!-- 入口 -->
+  <script src="js/main.js"></script>
+</body>
+</html>
