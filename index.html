@@ -6475,53 +6475,68 @@ $('dialogueBox').addEventListener('click',e=>{
 
 /* ================= 主循环 ================= */
 Game.last=0;
+Game.loopWatchdog=function(err){
+  // 渲染看门狗：单帧异常直接显示在画面上，不再无声黑屏；下一帧自动恢复
+  try{console.error('[loop]',err);}catch(e){}
+  try{
+    const el=document.getElementById('errOverlay');
+    if(el&&el.children.length<6){
+      const div=document.createElement('div');
+      div.textContent='⚠ 帧异常（已跳过该帧）：'+(err&&err.message||err);
+      el.appendChild(div);
+      el.style.display='block';
+    }
+  }catch(e){}
+};
 Game.loop=function(ts){
   requestAnimationFrame(Game.loop);
-  if(!Game.last)Game.last=ts;
-  let dt=Math.min(.033,(ts-Game.last)/1000);
-  Game.last=ts;
-  const time=Game.time+=dt;
-  const ctx=R.ctx;
-  const st=Game.state;
-  // 对话打字机
-  if(st==='dialogue')Dlg.update(dt);
-  // 世界模拟
-  if(st==='play'&&Game.player&&Game.region){
-    Game.playT=(Game.playT||0)+dt;
-    Game.updatePlayer(dt);
-    Game.updateVillage(dt);
-    for(const e of Game.enemies)Game.updateEnemy(e,dt);
-    Game.enemies=Game.enemies.filter(e=>!e.dead);
-    Game.updateProjectiles(dt);
-    Game.updateFx(dt);
-    Game.updateOrbs(dt);
-    Q.updateWave();
-    Game.spawnManager(dt);
-    G.cam.update(dt,Game.player,Game.world);
-    G.Particles.update(dt);
-    G.FloatText.update(dt);
-    Game.updateInteract();
-    Game.uiT+=dt;
-    if(Game.uiT>.08){Game.uiT=0;Game.HUD();}
-    Game.mmT+=dt;
-    if(Game.mmT>.15){Game.mmT=0;R.drawMinimap();}
-  }
-  // 渲染
-  if(Game.region&&Game.player&&st!=='title'&&st!=='prologue'&&st!=='classSelect'&&st!=='ending'){
-    if(G.FP.on)R.drawFP(dt,time);
-    else R.drawWorld(dt,time);
-  }else if(st==='ending'){
-    // 结局星空
-    ctx.fillStyle='#020308';ctx.fillRect(0,0,R.cv.width,R.cv.height);
-    for(const s of R.stars){
-      ctx.globalAlpha=.3+.7*Math.abs(Math.sin(time*.5+s.tw));
-      ctx.fillStyle='#e8ecff';
-      ctx.fillRect(s.x*R.cv.width,s.y*R.cv.height,s.s,s.s);
+  try{
+    if(!Game.last)Game.last=ts;
+    let dt=Math.min(.033,(ts-Game.last)/1000);
+    Game.last=ts;
+    const time=Game.time+=dt;
+    const ctx=R.ctx;
+    const st=Game.state;
+    // 对话打字机
+    if(st==='dialogue')Dlg.update(dt);
+    // 世界模拟
+    if(st==='play'&&Game.player&&Game.region){
+      Game.playT=(Game.playT||0)+dt;
+      Game.updatePlayer(dt);
+      Game.updateVillage(dt);
+      for(const e of Game.enemies)Game.updateEnemy(e,dt);
+      Game.enemies=Game.enemies.filter(e=>!e.dead);
+      Game.updateProjectiles(dt);
+      Game.updateFx(dt);
+      Game.updateOrbs(dt);
+      Q.updateWave();
+      Game.spawnManager(dt);
+      G.cam.update(dt,Game.player,Game.world);
+      G.Particles.update(dt);
+      G.FloatText.update(dt);
+      Game.updateInteract();
+      Game.uiT+=dt;
+      if(Game.uiT>.08){Game.uiT=0;Game.HUD();}
+      Game.mmT+=dt;
+      if(Game.mmT>.15){Game.mmT=0;R.drawMinimap();}
     }
-    ctx.globalAlpha=1;
-  }else{
-    R.drawMenuBg(dt,time);
-  }
+    // 渲染
+    if(Game.region&&Game.player&&st!=='title'&&st!=='prologue'&&st!=='classSelect'&&st!=='ending'){
+      if(G.FP.on)R.drawFP(dt,time);
+      else R.drawWorld(dt,time);
+    }else if(st==='ending'){
+      // 结局星空
+      ctx.fillStyle='#020308';ctx.fillRect(0,0,R.cv.width,R.cv.height);
+      for(const s of R.stars){
+        ctx.globalAlpha=.3+.7*Math.abs(Math.sin(time*.5+s.tw));
+        ctx.fillStyle='#e8ecff';
+        ctx.fillRect(s.x*R.cv.width,s.y*R.cv.height,s.s,s.s);
+      }
+      ctx.globalAlpha=1;
+    }else{
+      R.drawMenuBg(dt,time);
+    }
+  }catch(err){Game.loopWatchdog(err);}
   G.Input.endFrame();
 };
 
