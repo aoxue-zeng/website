@@ -386,6 +386,16 @@ body{font-family:var(--fnt);color:#d8cfc0;-webkit-user-select:none;user-select:n
   </div>
 </div>
 
+<!-- ============ 背包 ============ -->
+<div id="bagScreen" class="screen dim-bg">
+  <div class="panel" style="width:680px;max-height:86vh;overflow-y:auto;">
+    <div class="panelTitle">🎒 星痕行囊</div>
+    <div id="bagGold" style="font-size:13px;color:#c8b088;margin-bottom:8px;"></div>
+    <div id="bagList" style="max-height:430px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;"></div>
+    <button class="btn" id="bagClose" style="margin-top:14px;">关 闭 (B)</button>
+  </div>
+</div>
+
 <!-- ============ 告示板（支线任务） ============ -->
 <div id="boardScreen" class="screen dim-bg">
   <div class="panel" style="width:640px;max-height:86vh;overflow-y:auto;">
@@ -1087,6 +1097,7 @@ D.HELP = [
   ['<kbd>V</kbd> / 双击<kbd>鼠标中键</kbd>','视角复位（回到主角默认视角）'],
   ['<kbd>H</kbd>','小屋装修面板（屋内）/ 取消摆放'],
   ['<kbd>N</kbd>','宠物面板（喂食、好感与升级）'],
+  ['<kbd>B</kbd>','背包（材料 / 种子农产品 / 消耗品 / 装备一览）'],
   ['<kbd>空格</kbd>','摆放模式下放置家具'],
   ['<kbd>Esc</kbd>','暂停菜单']
 ];
@@ -4676,7 +4687,7 @@ Game.initVillage=function(){
   Game.placing=null;
 };
 
-Game.SCREENS=['titleScreen','prologueScreen','classScreen','mapScreen','shopScreen','charScreen','pauseScreen','helpScreen','deathScreen','endingScreen','saveIOScreen','farmScreen','petScreen','decorScreen','boardScreen'];
+Game.SCREENS=['titleScreen','prologueScreen','classScreen','mapScreen','shopScreen','charScreen','pauseScreen','helpScreen','deathScreen','endingScreen','saveIOScreen','farmScreen','petScreen','decorScreen','boardScreen','bagScreen'];
 Game.showScreen=function(id){
   for(const s of Game.SCREENS)$(s).classList.toggle('on',s===id);
   $('hud').classList.toggle('on',!id&&(Game.state==='play'||Game.state==='dialogue'));
@@ -4684,7 +4695,7 @@ Game.showScreen=function(id){
 };
 Game.setState=function(s){
   Game.state=s;
-  const map={title:'titleScreen',prologue:'prologueScreen',classSelect:'classScreen',map:'mapScreen',shop:'shopScreen',char:'charScreen',pause:'pauseScreen',help:'helpScreen',death:'deathScreen',ending:'endingScreen',saveIO:'saveIOScreen',farm:'farmScreen',pet:'petScreen',decor:'decorScreen',board:'boardScreen'};
+  const map={title:'titleScreen',prologue:'prologueScreen',classSelect:'classScreen',map:'mapScreen',shop:'shopScreen',char:'charScreen',pause:'pauseScreen',help:'helpScreen',death:'deathScreen',ending:'endingScreen',saveIO:'saveIOScreen',farm:'farmScreen',pet:'petScreen',decor:'decorScreen',board:'boardScreen',bag:'bagScreen'};
   Game.showScreen(map[s]||null);
 };
 
@@ -4789,6 +4800,7 @@ Game.exitHouse=function(){
   G.cam.resetView(true);
   G.toast('你回到了圣辉城——镇内安全无虞，怪物只在镇外的荒野游荡');
   G.toast('🛖 广场四周：药剂铺 ✚ / 铁匠铺 ⚒ / 杂货 ❦ / 兽栏 🐾 / 商队 ❖ · 屋后有自家农田 🌾',true);
+  G.toast('🎒 按 B 打开背包——材料、农产品、装备一目了然',true);
 };
 
 /* ================= 生成管理 ================= */
@@ -6000,6 +6012,74 @@ Game.renderBoard=function(){
 };
 $('sqClose').addEventListener('click',()=>Game.setState('play'));
 
+/* ---------- 背包 ---------- */
+Game.openBag=function(){
+  Game.setState('bag');
+  Game.renderBag();
+};
+Game.renderBag=function(){
+  const p=Game.player, list=$('bagList');
+  if(!p)return;
+  list.innerHTML='';
+  $('bagGold').textContent='金币 ◈ '+p.gold+' · 掉落物走近自动拾取入包';
+  const sec=t=>{const h=document.createElement('div');h.className='panelTitle';h.style.fontSize='17px';h.style.marginTop='6px';h.textContent=t;list.appendChild(h);};
+  const mkBtn=(label,fn,dis)=>{const b=document.createElement('button');b.className='btn small';b.textContent=label;b.disabled=!!dis;if(fn)b.addEventListener('click',fn);return b;};
+  const row=(icon,name,count,desc,btns)=>{
+    const d=document.createElement('div');
+    d.className='list-row';
+    d.innerHTML=`<span style="width:26px;text-align:center;">${icon}</span><span style="flex:1;"><b style="color:#ffe9c8;">${name}</b>${count!=null?' ×'+count:''}<div style="font-size:12px;color:#8a7c5e;">${desc||''}</div></span>`;
+    if(btns&&btns.length){const bx=document.createElement('span');bx.style.cssText='display:flex;gap:6px;';btns.forEach(b=>bx.appendChild(b));d.appendChild(bx);}
+    list.appendChild(d);
+  };
+  const empty=t=>list.insertAdjacentHTML('beforeend',`<div style="color:#8a7c5e;font-size:13px;">${t}</div>`);
+  // 锻造材料
+  sec('⛏ 锻造材料');
+  const mats=Object.keys(D.MATS).filter(k=>(p.mats[k]||0)>0);
+  if(!mats.length)empty('暂无——讨伐怪物有概率掉落，BOSS 必掉 3 枚');
+  mats.forEach(k=>row(D.MATS[k].icon,D.MATS[k].name,p.mats[k],'区域锻造材料 · 铁匠铺锻造/强化时消耗'));
+  // 种子与农产品
+  sec('🌾 种子与农产品');
+  let cropAny=false;
+  if(p.seeds.wheat>0){cropAny=true;row('🌾','星辉麦种子',p.seeds.wheat,'屋后农田耕种 · 空格打开农田面板');}
+  if(p.seeds.moon>0){cropAny=true;row('✿','月光花种子',p.seeds.moon,'珍贵种子 · 屋后农田耕种');}
+  if(p.cropInv.wheat>0){cropAny=true;row('🌾','星辉麦',p.cropInv.wheat,'食用回复 30% 生命 · 售 25 金 · 可喂宠物',[
+    mkBtn('食用',()=>{Game.useCrop('wheat');Game.renderBag();}),
+    mkBtn('喂宠物',()=>Game.openPetPanel())]);}
+  if(p.cropInv.moon>0){cropAny=true;row('✿','月光花',p.cropInv.moon,'使用获得 90 秒再生 · 售 40 金',[
+    mkBtn('使用',()=>{Game.useCrop('moon');Game.renderBag();})]);}
+  if(!cropAny)empty('暂无——种子在「百宝杂货」购买，农田种植收获');
+  // 消耗品
+  sec('🧪 消耗品');
+  row('✚','生命药剂',p.potH,'快捷键 1 饮用 · 携带上限 '+Game.potionCap());
+  row('✧','法力药剂',p.potM,'快捷键 2 饮用 · 携带上限 '+Game.potionCap());
+  if(p.snacks>0)row('🍪','宠物零食',p.snacks,'喂食好感 +2 · 上限 Lv.5',[
+    mkBtn('喂食',()=>Game.openPetPanel())]);
+  // 农具与家具
+  sec('🪑 家具与特殊');
+  let fAny=false;
+  Object.keys(D.FURNITURE).forEach(id=>{
+    const own=p.furnOwned[id]||0, placed=Game.furnPlacedCount(id), spare=own-placed;
+    if(spare>0){fAny=true;row('🪑',D.FURNITURE[id].name,spare,'已摆出 '+placed+'/'+own+' · 小屋内按 H 摆放');}
+  });
+  if(p.tools.hoe){fAny=true;row('⚒','星辉锄头',null,'农具 · 农田收获产量 +1');}
+  if(p.tools.scare){fAny=true;row('🌯','星辉稻草人',null,'农具 · 作物生长速度 +25%');}
+  if(!fAny)empty('暂无——家具在「百宝杂货」购买，农具在「铁匠铺」');
+  // 装备与饰品
+  sec('⚔ 装备');
+  if(p.equipW>=0){const t=D.WEAPON_TIERS[p.equipW];row('⚔',t.name+'武器',null,'攻击 +'+t.atk+(p.weaponPlus?' · 星辉强化 +'+(p.weaponPlus*10):'')+' · 铁匠铺可升级');}
+  else row('⚔','徒手',null,'去铁匠铺锻造你的第一件武器');
+  if(p.equipA>=0){const t=D.ARMOR_TIERS[p.equipA];row('🛡',t.name,null,'防御 +'+t.def+' · 生命 +'+t.hp+' · 铁匠铺可升级');}
+  else row('🛡','无防具',null,'去铁匠铺锻造防具');
+  [['💍 饰品Ⅰ',p.acc1],['💍 饰品Ⅱ',p.acc2]].forEach(([slot,id])=>{
+    const a=id&&D.ACCS[id];
+    row(slot[0],a?a.name:slot+' 空',null,a?a.desc:'饰品由 BOSS 掉落或支线奖励获得');
+  });
+  // 支线进度
+  const sqDone=Object.values(p.sideQ).filter(s=>s.done).length;
+  if(D.SIDEQ.length)row('📋','支线任务',sqDone+'/'+D.SIDEQ.length,'告示板接取 · 各区域出生点旁');
+};
+$('bagClose').addEventListener('click',()=>Game.setState('play'));
+
 /* ================= 角色面板 ================= */
 Game.openChar=function(){
   Game.setState('char');
@@ -6228,6 +6308,7 @@ G.onKey=function(code){
     else if(code==='KeyM')Game.openMap();
     else if(code==='KeyC')Game.openChar();
     else if(code==='KeyN')Game.openPetPanel();
+    else if(code==='KeyB')Game.openBag();
     else if(code==='KeyH'){
       if(Game.placing)Game.cancelPlacing();
       else Game.openDecor();
@@ -6248,6 +6329,7 @@ G.onKey=function(code){
   if(s==='pet'&&(code==='KeyN'||code==='Escape')){Game.setState('play');return;}
   if(s==='decor'&&(code==='KeyH'||code==='Escape')){Game.setState('play');return;}
   if(s==='board'&&code==='Escape'){Game.setState('play');return;}
+  if(s==='bag'&&(code==='KeyB'||code==='Escape')){Game.setState('play');return;}
   if(s==='pause'&&code==='Escape'){Game.setState('play');return;}
   if(s==='help'&&code==='Escape'){$('helpClose').click();return;}
   if(s==='saveIO'&&code==='Escape'){Game.toTitle();return;}
