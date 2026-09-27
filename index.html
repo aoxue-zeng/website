@@ -54,6 +54,20 @@ body{font-family:var(--fnt);color:#d8cfc0;-webkit-user-select:none;user-select:n
 @keyframes titleGlow{0%,100%{text-shadow:0 0 8px rgba(255,230,160,.5),0 0 34px rgba(216,180,106,.4),0 0 80px rgba(200,140,60,.28),0 4px 6px #000;}50%{text-shadow:0 0 12px rgba(255,240,190,.85),0 0 50px rgba(230,190,110,.6),0 0 120px rgba(210,150,70,.45),0 4px 6px #000;}}
 #gameSub{font-size:15px;letter-spacing:.75em;text-indent:.75em;color:var(--gold);opacity:.85;}
 #titleMenu{display:flex;flex-direction:column;gap:14px;margin-top:22px;}
+#slotList{display:flex;gap:12px;margin-top:4px;}
+.slot-card{
+  width:190px;padding:12px 14px;border:1px solid #4a4030;border-radius:10px;cursor:pointer;
+  background:linear-gradient(160deg,rgba(30,26,18,.9),rgba(18,15,10,.9));
+  transition:all .18s;position:relative;text-align:left;
+}
+.slot-card:hover{border-color:#c8a860;box-shadow:0 0 16px rgba(216,180,106,.3);transform:translateY(-2px);}
+.slot-card .sc-tag{font-size:11px;letter-spacing:.2em;color:#8a7c5e;}
+.slot-card .sc-label{margin-top:6px;font-size:13px;line-height:1.65;color:#e8d8b0;min-height:64px;}
+.slot-card .sc-label b{color:#ffd88a;}
+.slot-card .sc-del{position:absolute;top:8px;right:10px;font-size:11px;color:#6a5a48;cursor:pointer;}
+.slot-card .sc-del:hover{color:#e07050;}
+.slot-card.empty{opacity:.75;}
+.slot-card.empty .sc-label{color:#6b6250;display:flex;align-items:center;justify-content:center;}
 #titleFoot{position:absolute;bottom:22px;font-size:12px;color:#6b6250;letter-spacing:.25em;}
 
 /* ---------- 序章 ---------- */
@@ -322,8 +336,9 @@ body{font-family:var(--fnt);color:#d8cfc0;-webkit-user-select:none;user-select:n
     <h1 id="gameTitle">星坠圣墟</h1>
     <div id="gameSub">星神陨落 · 宿命抉择 · 废墟救赎</div>
     <div id="titleMenu">
+      <div id="slotList"></div>
       <button class="btn" id="btnNew">开始新的命运</button>
-      <button class="btn" id="btnContinue" disabled>继续旅程</button>
+      <button class="btn" id="btnContinue" disabled>继续最近的旅程</button>
       <button class="btn" id="btnSaveIO">存档管理 · 导入/导出</button>
       <button class="btn" id="btnHelp">操作说明</button>
     </div>
@@ -4954,9 +4969,44 @@ $('btnRevive').addEventListener('click',()=>{
   });
 });
 
-/* ================= 存档 ================= */
-Game.SAVE_KEY='starfall_sanctum_save_v1';
-Game.save=function(){
+/* ================= 存档（三槽位 · 标签卡片） ================= */
+Game.SLOT_N=3;
+Game.slotKey=i=>'starfall_sanctum_slot_'+i;
+Game.LEGACY_KEY='starfall_sanctum_save_v1';
+Game.curSlot=1;
+Game.playT=0;
+/* 旧版单档自动迁移到槽位1（保留旧键不删） */
+Game.migrateLegacy=function(){
+  try{
+    if(localStorage.getItem(Game.slotKey(1)))return;
+    const old=localStorage.getItem(Game.LEGACY_KEY);
+    if(old){localStorage.setItem(Game.slotKey(1),old);G.toast('📦 检测到旧版存档，已迁移到「存档槽 一」',true);}
+  }catch(e){}
+};
+Game.slotData=function(i){
+  try{
+    let raw=localStorage.getItem(Game.slotKey(i));
+    if(!raw)return null;
+    raw=raw.split('\n').filter(l=>!l.trim().startsWith('#')).join('\n').trim(); // 容忍带标签行的文本
+    return JSON.parse(raw);
+  }catch(e){return null;}
+};
+Game.slotLabel=function(data,slotNo){
+  if(!data)return '';
+  const cls=(D.CLASSES[data.clsId]||{}).name||'???';
+  const fac=data.faction==='order'?' · 秩序':data.faction==='chaos'?' · 混沌':'';
+  const reg=(D.REGIONS[data.regionIdx||0]||{}).name||'';
+  const fragN=(data.frags||[]).filter(Boolean).length;
+  let t='';
+  if(data.meta&&data.meta.ts){
+    const d=new Date(data.meta.ts);
+    t=' · '+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }
+  const dur=(data.meta&&data.meta.playT)?(' · ⏱'+(data.meta.playT>=3600?(data.meta.playT/3600).toFixed(1)+'小时':Math.round(data.meta.playT/60)+'分钟')):'';
+  const tag=slotNo?['一','二','三'][slotNo-1]+' ':'';
+  return `<b>${cls}</b>${fac} · Lv.${data.level||1}${dur}${t}<br>${reg} · ◈${data.gold||0} · ✦碎片 ${fragN}/6`;
+};
+Game.save=function(slot){
   const p=Game.player;
   if(!p)return;
   const data={
@@ -4969,14 +5019,18 @@ Game.save=function(){
     farm:Game.farm,petData:Game.pet&&Game.pet.owned?{type:Game.pet.type,affinity:Game.pet.affinity,lv:Game.pet.lv}:null,
     furnPlaced:Game.furnPlaced,
     regionIdx:Game.regionIdx,unlocked:Game.unlocked,completed:Game.completed,
-    questSteps:Game.questSteps,pendingFaction:Game.pendingFaction,inHouse:Game.inHouse
+    questSteps:Game.questSteps,pendingFaction:Game.pendingFaction,inHouse:Game.inHouse,
+    meta:{ts:Date.now(),playT:Math.round(Game.playT||0)}
   };
-  try{localStorage.setItem(Game.SAVE_KEY,JSON.stringify(data));}catch(e){}
+  try{localStorage.setItem(Game.slotKey(slot||Game.curSlot),JSON.stringify(data));}catch(e){}
 };
-Game.hasSave=function(){ try{return !!localStorage.getItem(Game.SAVE_KEY);}catch(e){return false;} };
-Game.loadSave=function(){
-  let data;
-  try{data=JSON.parse(localStorage.getItem(Game.SAVE_KEY));}catch(e){return false;}
+Game.hasSave=function(){
+  for(let i=1;i<=Game.SLOT_N;i++)if(Game.slotData(i))return true;
+  return false;
+};
+Game.loadSave=function(slot){
+  Game.curSlot=slot||Game.curSlot||1;
+  let data=Game.slotData(Game.curSlot);
   if(!data)return false;
   const p=Game.createPlayer(data.clsId);
   p.level=data.level; p.xp=data.xp; p.gold=data.gold;
@@ -5012,11 +5066,67 @@ Game.loadSave=function(){
   Game.completed=data.completed||Game.completed;
   Game.questSteps=data.questSteps||Game.questSteps;
   Game.pendingFaction=!!data.pendingFaction;
+  Game.playT=(data.meta&&data.meta.playT)||0;
   Game.loadRegion(data.regionIdx||0);
   if(data.inHouse)Game.enterHouse();
   G.Quests.refreshHint();
   G.Quests.stepStart();
   return true;
+};
+/* 槽位卡片（标题界面） */
+Game.renderSlots=function(){
+  Game.migrateLegacy();
+  const box=$('slotList');
+  if(!box)return;
+  box.innerHTML='';
+  const tags=['存档槽 一','存档槽 二','存档槽 三'];
+  for(let i=1;i<=Game.SLOT_N;i++){
+    const data=Game.slotData(i);
+    const card=document.createElement('div');
+    card.className='slot-card'+(data?'':' empty');
+    const label=document.createElement('div');
+    label.className='sc-label';
+    label.innerHTML=data
+      ?('<span class="sc-tag">'+tags[i-1]+'</span><br>'+Game.slotLabel(data))
+      :'<span class="sc-tag">'+tags[i-1]+'</span><div class="sc-label">— 空 —<br><span style="font-size:11px;color:#8a7c5e;">点击在此开启新命运</span></div>';
+    card.appendChild(label);
+    if(data){
+      const del=document.createElement('span');
+      del.className='sc-del';
+      del.textContent='删';
+      del.addEventListener('click',ev=>{
+        ev.stopPropagation();
+        const now=Date.now();
+        if(now-(Game._delT||0)<2500&&Game._delSlot===i){
+          localStorage.removeItem(Game.slotKey(i));
+          Game._delT=0;
+          Game.renderSlots();
+          G.toast('🗑 存档槽 '+['一','二','三'][i-1]+' 已清空',true);
+        }else{
+          Game._delT=now;Game._delSlot=i;
+          G.toast('再点一次「删」确认清空槽位 '+['一','二','三'][i-1]+'（不可恢复）',true);
+        }
+      });
+      card.appendChild(del);
+      card.addEventListener('click',()=>{Sfx.ensure();Sfx.sfx('ui');Game.continueGame(i);});
+    }else{
+      card.addEventListener('click',()=>{Sfx.ensure();Sfx.sfx('ui');Game.pendingSlot=i;Game.startPrologue();});
+    }
+    box.appendChild(card);
+  }
+};
+/* 最近保存的槽位号（供「继续最近的旅程」） */
+Game.latestSlot=function(){
+  let best=0,bt=-1;
+  for(let i=1;i<=Game.SLOT_N;i++){
+    const d=Game.slotData(i);
+    if(d){const t=(d.meta&&d.meta.ts)||0;if(t>bt){bt=t;best=i;}}
+  }
+  return best;
+};
+Game.firstEmptySlot=function(){
+  for(let i=1;i<=Game.SLOT_N;i++)if(!Game.slotData(i))return i;
+  return 0;
 };
 
 /* ================= 对话系统 ================= */
@@ -6125,6 +6235,8 @@ $('charClose').addEventListener('click',()=>Game.setState('play'));
 Game.toTitle=function(){
   G.Audio.stopMusic();
   Game.setState('title');
+  Game.pendingSlot=null;
+  Game.renderSlots();
   $('btnContinue').disabled=!Game.hasSave();
 };
 Game.startPrologue=function(){
@@ -6171,6 +6283,11 @@ Game.toClassSelect=function(){
   });
 };
 Game.startNewGame=function(clsId){
+  // 目标槽位：空卡片点击时已指定（pendingSlot），否则取第一个空槽
+  Game.curSlot=Game.pendingSlot||Game.firstEmptySlot()||Game.curSlot||1;
+  Game.pendingSlot=null;
+  if(Game.slotData(Game.curSlot)){G.toast('⚠ 该槽位已有存档且未被清空——已取消，请先删除再开局',true);return;}
+  Game.playT=0;
   const p=Game.createPlayer(clsId);
   Game.player=p;
   Game.initVillage();
@@ -6192,45 +6309,58 @@ Game.startNewGame=function(clsId){
     {who:'',color:'#cfc4ac',text:'—— 滚轮缩放视野 · Z/X 旋转视角 · V 复位视角 · <em>P</em> 可体验第一人称模式 ——'}
   ],{onEnd:()=>{Q.refreshHint();Q.stepStart();}});
 };
-Game.continueGame=function(){
-  if(Game.loadSave()){
+Game.continueGame=function(slot){
+  if(Game.loadSave(slot)){
     Game.setState('play');
     Game.HUD();
     Game.buildSkillBar();
     G.Quests.stepStart();
+    G.toast('📖 载入 存档槽 '+['一','二','三'][Game.curSlot-1]+' · '+Game.slotLabel(Game.slotData(Game.curSlot)).replace(/<[^>]+>/g,' '),true);
   }
 };
 
-$('btnNew').addEventListener('click',()=>{Sfx.ensure();Sfx.sfx('ui');Game.startPrologue();});
-$('btnContinue').addEventListener('click',()=>{Sfx.ensure();Sfx.sfx('ui');Game.continueGame();});
+$('btnNew').addEventListener('click',()=>{
+  Sfx.ensure();Sfx.sfx('ui');
+  const empty=Game.firstEmptySlot();
+  if(!empty){G.toast('三个存档槽都已满——点击存档卡片上的「删」清空一个，或直接点卡片覆盖前先删除',true);return;}
+  Game.pendingSlot=empty;
+  Game.startPrologue();
+});
+$('btnContinue').addEventListener('click',()=>{
+  Sfx.ensure();Sfx.sfx('ui');
+  const s=Game.latestSlot();
+  if(s)Game.continueGame(s);
+});
 $('proBtn').addEventListener('click',()=>{Sfx.sfx('ui');Game.toClassSelect();});
 $('proText').addEventListener('click',()=>Game.proNext());
 $('classBack').addEventListener('click',()=>{Sfx.sfx('ui');Game.toTitle();});
 $('classStart').addEventListener('click',()=>{if(Game.selClass){Sfx.sfx('ui');Game.startNewGame(Game.selClass);}});
 $('btnEndRestart').addEventListener('click',()=>{
-  try{localStorage.removeItem(Game.SAVE_KEY);}catch(e){}
+  try{localStorage.removeItem(Game.slotKey(Game.curSlot||1));}catch(e){}
   Game.player=null;Game.region=null;
   Game.toTitle();
 });
 
-/* 存档管理（导入/导出，跨地址迁移） */
+/* 存档管理（导入/导出，跨地址迁移 · 导出自带标签行） */
 Game.saveIOCheck=function(){
   const ta=$('saveIOText'), hint=$('saveIOHint');
-  const v=(ta.value||'').trim();
-  if(!v){hint.textContent='把旧存档文本粘贴到这里（一大串以 { 开头、以 } 结尾的文本）';hint.style.color='#9fd8ff';return null;}
+  let v=(ta.value||'').trim();
+  if(!v){hint.textContent='粘贴存档文本（含 # 标签行也没关系，会自动识别）';hint.style.color='#9fd8ff';return null;}
+  v=v.split('\n').filter(l=>!l.trim().startsWith('#')).join('\n').trim(); // 剥离标签行
   let data;
   try{data=JSON.parse(v);}
   catch(e){hint.textContent='✘ JSON 格式错误——复制时可能不完整，请回到旧页面重新全选复制';hint.style.color='#ff8a7a';return null;}
   if(!data||typeof data.clsId!=='string'||!D.CLASSES[data.clsId]){hint.textContent='✘ 这不是星坠圣墟的存档（缺少职业字段）';hint.style.color='#ff8a7a';return null;}
   const fac=data.faction==='order'?'秩序':data.faction==='chaos'?'混沌':'未抉择';
-  hint.textContent='✔ 检测到存档：Lv.'+(data.level||1)+' '+D.CLASSES[data.clsId].name+' · 金币 '+(data.gold||0)+' · '+(D.REGIONS[data.regionIdx||0].name)+' · 阵营 '+fac+' —— 点「导入并继续」';
+  hint.textContent='✔ 检测到存档：Lv.'+(data.level||1)+' '+D.CLASSES[data.clsId].name+' · 金币 '+(data.gold||0)+' · '+(D.REGIONS[data.regionIdx||0].name)+' · 阵营 '+fac+' —— 将导入到 存档槽 '+['一','二','三'][Game.curSlot-1]+'，点「导入并继续」';
   hint.style.color='#9fe8a0';
   return data;
 };
 $('btnSaveIO').addEventListener('click',()=>{
   Sfx.ensure();Sfx.sfx('ui');
   let cur='';
-  try{cur=localStorage.getItem(Game.SAVE_KEY)||'';}catch(e){}
+  const d=Game.slotData(Game.curSlot);
+  if(d)cur='# 星坠圣墟存档 · '+Game.slotLabel(d,Game.curSlot).replace(/<br>/g,' / ').replace(/<[^>]+>/g,'')+'\n'+JSON.stringify(d);
   $('saveIOText').value=cur;
   Game.saveIOCheck();
   Game.setState('saveIO');
@@ -6253,12 +6383,12 @@ $('saveIOCopy').addEventListener('click',()=>{
 $('saveIOImport').addEventListener('click',()=>{
   const data=Game.saveIOCheck();
   if(!data)return;
-  try{localStorage.setItem(Game.SAVE_KEY,JSON.stringify(data));}
+  try{localStorage.setItem(Game.slotKey(Game.curSlot),JSON.stringify(data));}
   catch(e){$('saveIOHint').textContent='✘ 写入失败：浏览器存储不可用（是否处于隐私/无痕模式？）';$('saveIOHint').style.color='#ff8a7a';return;}
   $('btnContinue').disabled=false;
   Sfx.sfx('quest');
-  Game.continueGame();
-  if(Game.state==='saveIO'){Game.loadSave();Game.setState('play');Game.HUD();Game.buildSkillBar();}
+  Game.continueGame(Game.curSlot);
+  if(Game.state==='saveIO'){Game.loadSave(Game.curSlot);Game.setState('play');Game.HUD();Game.buildSkillBar();}
 });
 
 /* 帮助 */
@@ -6276,7 +6406,11 @@ $('helpClose').addEventListener('click',()=>{
 
 /* 暂停 */
 $('btnResume').addEventListener('click',()=>Game.setState('play'));
-$('btnSave').addEventListener('click',()=>{Game.save();G.toast('进度已保存',true);Sfx.sfx('quest');});
+$('btnSave').addEventListener('click',()=>{
+  Game.save();
+  G.toast('✔ 已保存到 存档槽 '+['一','二','三'][Game.curSlot-1]+' · '+Game.slotLabel(Game.slotData(Game.curSlot)).replace(/<[^>]+>/g,' '),true);
+  Sfx.sfx('quest');
+});
 $('btnMusic').addEventListener('click',function(){
   G.Audio.setMusic(!G.Audio.musicOn);
   this.textContent='音乐：'+(G.Audio.musicOn?'开':'关');
@@ -6353,6 +6487,7 @@ Game.loop=function(ts){
   if(st==='dialogue')Dlg.update(dt);
   // 世界模拟
   if(st==='play'&&Game.player&&Game.region){
+    Game.playT=(Game.playT||0)+dt;
     Game.updatePlayer(dt);
     Game.updateVillage(dt);
     for(const e of Game.enemies)Game.updateEnemy(e,dt);
