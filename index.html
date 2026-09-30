@@ -6488,13 +6488,21 @@ Game.loopWatchdog=function(err){
     }
   }catch(e){}
 };
-Game.loop=function(ts){
-  requestAnimationFrame(Game.loop);
+Game.loop=function(){
+  requestAnimationFrame(()=>Game.loop());
   Game._lastWall=Date.now();
+  const nowT=performance.now();
+  if(Game._lastLoopT&&nowT-Game._lastLoopT<8)return; // 帧率上限 ~120fps：垂直同步失效时防止 CPU 拉满
+  if(Game._inLoop)return; // 防重入：rAF 与定时器同帧触发时只跑一次
+  Game._inLoop=true;
+  Game._lastLoopT=nowT;
   try{
-    if(!Game.last)Game.last=ts;
-    let dt=Math.min(.033,(ts-Game.last)/1000);
-    Game.last=ts;
+    const t=nowT; // 唯一时钟域：rAF 与定时器兜底统一走 performance.now
+    if(!Game.last)Game.last=t-16.7;
+    let dt=(t-Game.last)/1000;
+    if(dt<0||dt>1)dt=.016;    // 时钟域跳变/后台恢复保护
+    dt=Math.min(dt,.033);
+    Game.last=t;
     const time=Game.time+=dt;
     const ctx=R.ctx;
     const st=Game.state;
@@ -6538,6 +6546,7 @@ Game.loop=function(ts){
       R.drawMenuBg(dt,time);
     }
   }catch(err){Game.loopWatchdog(err);}
+  finally{Game._inLoop=false;}
   G.Input.endFrame();
 };
 
