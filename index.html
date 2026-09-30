@@ -2475,11 +2475,13 @@ R.init=function(){
   R.shoot=[]; R.shootT=0;
   R.vign=null;
 };
-R.scale=1; // 动态分辨率：卡顿时自动降低画布分辨率（CSS inset:0 会自动拉伸铺满）
+R.scale=1; // 动态分辨率：卡顿时自动降低画布分辨率（CSS 强制拉伸铺满全屏）
 R.resize=function(){
   R.scale=R.scale||1;
   R.cv.width=Math.max(320,Math.round(window.innerWidth*R.scale));
   R.cv.height=Math.max(240,Math.round(window.innerHeight*R.scale));
+  R.cv.style.width='100vw';   // 降分辨率后仍铺满全屏（放大显示）
+  R.cv.style.height='100vh';
   G.cam.W=R.cv.width; G.cam.H=R.cv.height;
   const g=R.ctx.createRadialGradient(R.cv.width/2,R.cv.height/2,Math.min(R.cv.width,R.cv.height)*.36,R.cv.width/2,R.cv.height/2,Math.max(R.cv.width,R.cv.height)*.72);
   g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.52)');
