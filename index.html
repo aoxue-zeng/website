@@ -6490,6 +6490,7 @@ Game.loopWatchdog=function(err){
 };
 Game.loop=function(ts){
   requestAnimationFrame(Game.loop);
+  Game._lastWall=Date.now();
   try{
     if(!Game.last)Game.last=ts;
     let dt=Math.min(.033,(ts-Game.last)/1000);
@@ -6547,6 +6548,10 @@ window.addEventListener('load',()=>{
   G.Input.init();
   Game.toTitle();
   requestAnimationFrame(Game.loop);
+  // 帧驱动自救：某些内嵌浏览器会停止派发 rAF——超时 100ms 无帧时改用定时器驱动渲染
+  setInterval(()=>{
+    if(!document.hidden&&Game._lastWall&&Date.now()-Game._lastWall>100)Game.loop(Date.now());
+  },33);
   window.addEventListener('beforeunload',()=>{if(Game.state!=='title'&&Game.player)Game.save();});
 });
 G.Audio.ensureSoon=()=>G.Audio.ensure();
