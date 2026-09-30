@@ -2475,8 +2475,11 @@ R.init=function(){
   R.shoot=[]; R.shootT=0;
   R.vign=null;
 };
+R.scale=1; // 动态分辨率：卡顿时自动降低画布分辨率（CSS inset:0 会自动拉伸铺满）
 R.resize=function(){
-  R.cv.width=window.innerWidth; R.cv.height=window.innerHeight;
+  R.scale=R.scale||1;
+  R.cv.width=Math.max(320,Math.round(window.innerWidth*R.scale));
+  R.cv.height=Math.max(240,Math.round(window.innerHeight*R.scale));
   G.cam.W=R.cv.width; G.cam.H=R.cv.height;
   const g=R.ctx.createRadialGradient(R.cv.width/2,R.cv.height/2,Math.min(R.cv.width,R.cv.height)*.36,R.cv.width/2,R.cv.height/2,Math.max(R.cv.width,R.cv.height)*.72);
   g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.52)');
@@ -6492,7 +6495,7 @@ Game.loop=function(){
   requestAnimationFrame(()=>Game.loop());
   Game._lastWall=Date.now();
   const nowT=performance.now();
-  if(Game._lastLoopT&&nowT-Game._lastLoopT<8)return; // 帧率上限 ~120fps：垂直同步失效时防止 CPU 拉满
+  if(Game._lastLoopT&&nowT-Game._lastLoopT<15)return; // 帧率上限 ~66fps：垂直同步失效时防止 CPU 拉满
   if(Game._inLoop)return; // 防重入：rAF 与定时器同帧触发时只跑一次
   Game._inLoop=true;
   Game._lastLoopT=nowT;
@@ -6504,6 +6507,16 @@ Game.loop=function(){
     dt=Math.min(dt,.033);
     Game.last=t;
     const time=Game.time+=dt;
+    // 动态分辨率：统计真实帧间隔，持续低于 ~40fps 时自动降画布分辨率
+    {
+      const rg=nowT-(Game._prevNow||nowT); Game._prevNow=nowT;
+      Game._ftn=(Game._ftn||0)+1; Game._ftAcc=(Game._ftAcc||0)+rg;
+      if(Game._ftn>=120){
+        const avg=Game._ftAcc/Game._ftn; Game._ftn=0; Game._ftAcc=0;
+        if(avg>28&&R.scale>0.6){R.scale=Math.max(.6,R.scale-.2);R.resize();G.toast('⚡ 已自动调整画质以保持流畅',true);}
+        else if(avg>20&&R.scale>0.8){R.scale=.8;R.resize();G.toast('⚡ 已自动调整画质以保持流畅',true);}
+      }
+    }
     const ctx=R.ctx;
     const st=Game.state;
     // 对话打字机
