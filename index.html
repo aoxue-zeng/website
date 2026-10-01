@@ -605,9 +605,13 @@ D.CLASSES = {
     desc:'游走于禁咒边缘的智者。蜕变后成为圣光祭司或咒术师，抚愈盟友或压制敌军。',
     hp:100, mp:95, atk:14, def:3, spd:192, atkCd:.6, range:460,
     basicName:'幽影弹',
+    basicDesc:'跟踪光球随等级成长：体积更大、更易命中，高等级附带湮灭溅射',
     passive:{name:'汲魂', desc:'技能造成的伤害将 8% 转化为自身治疗'},
     basic(p){
-      G.Game.shootProj({x:p.x,y:p.y,angle:p.aimA,speed:330,dmg:p.atk*.95,r:6,color:p.skColor(),owner:'player',homing:2.2});
+      const lv=p.level;
+      const r=6+lv*.26;          // 光球随等级变大（更易命中）
+      const aoe=lv>=8?14+(lv-8)*1.2:0; // Lv.8 起附带幽影溅射，随等级增长
+      G.Game.shootProj({x:p.x,y:p.y,angle:p.aimA,speed:330,dmg:p.atk*.95,r,color:p.skColor(),owner:'player',homing:2.2,aoe,aoeDmg:p.atk*.45});
       G.Audio.sfx('shoot');
     }
   }
