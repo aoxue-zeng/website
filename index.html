@@ -518,7 +518,8 @@ body{font-family:var(--fnt);color:#d8cfc0;-webkit-user-select:none;user-select:n
   <div id="endingTitle">—</div>
   <div id="endingBody"></div>
   <div style="display:flex;gap:18px;">
-    <button class="btn" id="btnEndRestart">开启新的命运</button>
+    <button class="btn" id="btnEndContinue">继续这段旅程（自由探索）</button>
+    <button class="btn" id="btnEndRestart">返回标题界面</button>
   </div>
 </div>
 
@@ -6345,9 +6346,22 @@ $('proText').addEventListener('click',()=>Game.proNext());
 $('classBack').addEventListener('click',()=>{Sfx.sfx('ui');Game.toTitle();});
 $('classStart').addEventListener('click',()=>{if(Game.selClass){Sfx.sfx('ui');Game.startNewGame(Game.selClass);}});
 $('btnEndRestart').addEventListener('click',()=>{
-  try{localStorage.removeItem(Game.slotKey(Game.curSlot||1));}catch(e){}
-  Game.player=null;Game.region=null;
+  // 通关后返回标题：存档永久保留，可随时继续或新开
+  Game.save();
   Game.toTitle();
+  G.toast('通关存档已保留——随时从存档槽继续你的传说',true);
+});
+$('btnEndContinue').addEventListener('click',()=>{
+  // 二周目自由探索：回到大陆，敌人重新活跃，可继续练级/收集/支线
+  Game.setState('play');
+  const region=Game.region;
+  if(region&&Game.player){
+    G.Audio.playMusic('region'+Game.regionIdx,{mode:region.music.mode,root:region.music.root,tempo:region.music.tempo});
+    G.Particles.burst(Game.player.x,Game.player.y,'#ffe9a0',30,{spd:190,life:.8,glow:1});
+  }
+  Game.save();
+  G.toast('🌟 自由探索开启——大陆已净化，强敌重新出没，继续书写你的传说！',true);
+  Game.HUD();
 });
 
 /* 存档管理（导入/导出，跨地址迁移 · 导出自带标签行） */
