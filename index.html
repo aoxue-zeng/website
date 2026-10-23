@@ -561,13 +561,15 @@ D.CLASSES = {
     name:'圣骑士', role:'近战 · 坦克/输出', icon:'paladin',
     color:'#ffd77a', color2:'#9a6b30', cloak:'#3d5a8c',
     desc:'以星辉铸造圣铠的守护者。可在满级后蜕变为圣辉骑士或烬灭骑士，坚守阵地或焚尽敌军。',
-    hp:135, mp:60, atk:12, def:5, spd:192, atkCd:.55, range:82,
+    hp:150, mp:65, atk:14, def:6, spd:196, atkCd:.45, range:96,
     basicName:'星辉斩击',
-    passive:{name:'圣辉浸润', desc:'脱离战斗后每秒恢复 1.5% 生命值'},
+    basicDesc:'挥砍范围广，命中敌人时汲取圣辉回复生命（吸血 8%）',
+    passive:{name:'圣辉浸润', desc:'近战攻击吸血 8%；脱离战斗后每秒恢复 2.5% 生命值'},
     basic(p){ // 近战弧形斩击
-      const a=p.aimA, dmg=p.atk*1.0;
+      const a=p.aimA, dmg=p.atk*1.35;
       G.Renderer.fxSlash(p.x,p.y,a,p.range,p.skColor());
-      G.Game.arcDamage(p.x,p.y,a,p.range,1.9,dmg,{knock:120});
+      G.Game.arcDamage(p.x,p.y,a,p.range,2.3,dmg,{knock:140});
+      G.Game.healPlayer(dmg*.08);
       G.Audio.sfx('slash');
     }
   },
@@ -621,32 +623,32 @@ D.CLASSES = {
 /* ---------------- 技能（Q/E/R/F，按等级 1/3/6/10 解锁） ---------------- */
 D.SKILLS = {
   paladin:[
-    { key:'Q', name:'圣光斩', icon:'slash', cd:4, mana:14, unlock:1,
-      desc:'挥出巨大圣光弧，对面前的敌人造成 220% 攻击伤害。',
+    { key:'Q', name:'圣光斩', icon:'slash', cd:3.5, mana:14, unlock:1,
+      desc:'挥出巨大圣光弧，对面前的敌人造成 260% 攻击伤害。',
       cast(p){ const a=p.aimA;
-        G.Renderer.fxSlash(p.x,p.y,a,150,p.skColor(),1.6);
-        G.Game.arcDamage(p.x,p.y,a,150,2.0,p.atk*2.2,{knock:200});
-        if(p.faction==='order') G.Game.healPlayer(p.maxhp*.04);
-        if(p.faction==='chaos') G.Game.areaDamage(p.x,p.y,150,p.atk*.6,{burn:2});
+        G.Renderer.fxSlash(p.x,p.y,a,165,p.skColor(),1.8);
+        G.Game.arcDamage(p.x,p.y,a,165,2.2,p.atk*2.6,{knock:220});
+        if(p.faction==='order') G.Game.healPlayer(p.maxhp*.05);
+        if(p.faction==='chaos') G.Game.areaDamage(p.x,p.y,165,p.atk*.7,{burn:2});
         G.Audio.sfx('skill'); G.cam.shake(3);
       }},
-    { key:'E', name:'盾击冲阵', icon:'dash', cd:6, mana:16, unlock:3,
-      desc:'向准星方向发起冲锋，撞击路径上的敌人并使其眩晕 1 秒。',
-      cast(p){ G.Game.dash(p,p.aimA,240,{dmg:p.atk*1.6,stun:1}); G.Audio.sfx('dash'); }},
-    { key:'R', name:'神圣领域', icon:'nova', cd:13, mana:30, unlock:6,
-      desc:'进发圣辉冲击波：造成 130% 伤害，并治疗自身、获得护盾。',
+    { key:'E', name:'盾击冲阵', icon:'dash', cd:5, mana:16, unlock:3,
+      desc:'向准星方向发起冲锋，撞击路径上的敌人造成 200% 伤害并眩晕 1.2 秒。',
+      cast(p){ G.Game.dash(p,p.aimA,260,{dmg:p.atk*2.0,stun:1.2}); G.Audio.sfx('dash'); }},
+    { key:'R', name:'神圣领域', icon:'nova', cd:12, mana:30, unlock:6,
+      desc:'进发圣辉冲击波：造成 170% 伤害，并治疗自身、获得更强护盾。',
       cast(p){
-        G.Renderer.fxNova(p.x,p.y,190,p.skColor());
-        G.Game.areaDamage(p.x,p.y,190,p.atk*1.3,{knock:260});
-        G.Game.healPlayer(p.maxhp*(p.faction==='order'?.32:.22));
-        p.shield={v:p.maxhp*(p.faction==='order'?.4:.28),t:5};
+        G.Renderer.fxNova(p.x,p.y,210,p.skColor());
+        G.Game.areaDamage(p.x,p.y,210,p.atk*1.7,{knock:280});
+        G.Game.healPlayer(p.maxhp*(p.faction==='order'?.35:.25));
+        p.shield={v:p.maxhp*(p.faction==='order'?.45:.32),t:5};
         G.Audio.sfx('nova'); G.cam.shake(5);
       }},
-    { key:'F', name:'星辉裁决', icon:'doom', cd:18, mana:42, unlock:10,
-      desc:'召唤星辉圣剑轰击目标区域，短暂延迟后造成 450% 攻击伤害。',
+    { key:'F', name:'星辉裁决', icon:'doom', cd:16, mana:42, unlock:10,
+      desc:'召唤星辉圣剑轰击目标区域，短暂延迟后造成 520% 攻击伤害。',
       cast(p){
         const t=G.Game.mouseWorld();
-        G.Game.teleCircle({x:t.x,y:t.y,r:230,delay:.85,dmg:p.atk*4.5,owner:'player',color:p.skColor(),meteor:1});
+        G.Game.teleCircle({x:t.x,y:t.y,r:260,delay:.75,dmg:p.atk*5.2,owner:'player',color:p.skColor(),meteor:1});
         G.Audio.sfx('cast');
       }}
   ],
